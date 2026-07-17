@@ -84,3 +84,9 @@ npm run check
 npm test
 npm run build --workspace @taste/web
 ```
+
+Frost-overlay skill↔reference fidelity lives in
+`packages/ai/src/eval/skill-fidelity.ts` with fixtures under
+`packages/ai/test/fixtures/frost-overlay/`. Local runs write
+`.taste/runs/<run-id>/04-skill/review.md` after draft skill generation; the
+final `SKILL.md` is post-review. Hosted `apps/web` review wiring is deferred.

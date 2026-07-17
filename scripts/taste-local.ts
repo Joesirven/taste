@@ -11,6 +11,7 @@ import {
   extractRuleChunk,
   generateSkill,
   modelSlug,
+  reviewAndCorrectSkill,
   synthesizeImageNote,
   synthesizeRuleSet,
   type AiProviderCredentials,
@@ -167,8 +168,38 @@ async function main() {
     ruleSet: ruleSet.text,
     skillName: args.skillName,
   });
-  await writeArtifact(outDir, "04-skill/SKILL.md", skill.text);
-  await writeFile(path.join(outDir, "SKILL.md"), skill.text, "utf8");
+  await writeArtifact(outDir, "04-skill/draft-SKILL.md", skill.text);
+
+  log("Reviewing skill against synthesized notes");
+  const notesBundle = synthesizedNotes.map((note) => note.text).join("\n\n---\n\n");
+  const reviewed = await reviewAndCorrectSkill({
+    credentials,
+    model: models.skillModel,
+    draftSkill: skill.text,
+    synthesizedNotes: notesBundle,
+  });
+  const reviewMarkdown = [
+    `# Skill review`,
+    ``,
+    `- corrected: ${reviewed.corrected}`,
+    `- fidelityReasons: ${reviewed.fidelityReasons.length}`,
+    ``,
+    `## Changelog`,
+    ``,
+    reviewed.changelog ?? "(no review call — draft already passed fidelity, or notes did not evidence frost overlays)",
+    ``,
+    ...(reviewed.fidelityReasons.length > 0
+      ? [
+          `## Pre-review fidelity reasons`,
+          ``,
+          ...reviewed.fidelityReasons.map((reason) => `- ${reason}`),
+          ``,
+        ]
+      : []),
+  ].join("\n");
+  await writeArtifact(outDir, "04-skill/review.md", reviewMarkdown);
+  await writeArtifact(outDir, "04-skill/SKILL.md", reviewed.text);
+  await writeFile(path.join(outDir, "SKILL.md"), reviewed.text, "utf8");
   log(`Done: ${displayPath(path.join(outDir, "SKILL.md"))}`);
 }
 

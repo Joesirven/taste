@@ -5,6 +5,7 @@ import {
   buildChunkPrompt,
   buildRuleSetPrompt,
   buildSkillPrompt,
+  buildSkillReviewPrompt,
   buildSynthesisPrompt,
 } from "../src/prompts";
 
@@ -71,6 +72,18 @@ describe("buildSynthesisPrompt", () => {
     expect(prompt).not.toContain("Claude Opus 4 1");
     expect(prompt).not.toContain("proxyProvider");
   });
+
+  it("requires preserving minority frosted-overlay material recipes", () => {
+    const prompt = buildSynthesisPrompt({
+      image,
+      analyses: [{ text: "Matte frost over photo." }],
+    });
+
+    expect(prompt).toContain("Material / depth adjudication");
+    expect(prompt).toContain("frosted or translucent overlays");
+    expect(prompt).toContain("avoid glassmorphism");
+    expect(prompt).toContain("Prefer the analysis that cites the substrate");
+  });
 });
 
 describe("taste-agnostic prompt defaults", () => {
@@ -81,6 +94,15 @@ describe("taste-agnostic prompt defaults", () => {
     expect(prompt).not.toContain("UI/interface");
     expect(prompt).not.toContain("screenshot");
     expect(prompt).not.toContain("UI chrome");
+  });
+
+  it("requires a material recipe for overlays on imagery", () => {
+    const prompt = buildAnalysisPrompt(image);
+
+    expect(prompt).toContain("Material recipe");
+    expect(prompt).toContain("Gloss vs matte");
+    expect(prompt).toContain("glossy reflective glass");
+    expect(prompt).toContain("matte frosted overlays");
   });
 
   it("allows evidence-backed aesthetic categories instead of banning them", () => {
@@ -104,6 +126,24 @@ describe("taste-agnostic prompt defaults", () => {
     expect(prompt).not.toContain("serif/beige");
   });
 
+  it("splits glossy glass bans from matte frost in chunk prompts", () => {
+    const prompt = buildChunkPrompt({
+      id: "chunk_01",
+      notes: [
+        {
+          imageId: "img_0001",
+          file: "img_0001.md",
+          text: "Frosted chips over photography.",
+        },
+      ],
+    });
+
+    expect(prompt).toContain("Material ban split");
+    expect(prompt).toContain("glossy reflective glassmorphism");
+    expect(prompt).toContain("positive matte frosted-overlay");
+    expect(prompt).not.toContain("remove transparent glass cards → pale overlap only");
+  });
+
   it("does not inject Jaytel's neutral UI taste into rule or skill prompts", () => {
     const ruleSetPrompt = buildRuleSetPrompt([
       {
@@ -123,6 +163,8 @@ describe("taste-agnostic prompt defaults", () => {
     }
     expect(combined).toContain("Default to the concrete choices best supported by the chunk evidence.");
     expect(combined).toContain("Derive typography, color, texture, density");
+    expect(combined).toContain("Split material bans");
+    expect(combined).toContain("Material collapse guardrail");
   });
 });
 
@@ -136,5 +178,21 @@ describe("buildSkillPrompt", () => {
     expect(prompt).toContain("# Product UI");
     expect(prompt).toContain("<skill-description>");
     expect(prompt).toContain("<skill-body>");
+  });
+});
+
+describe("buildSkillReviewPrompt", () => {
+  it("asks for philosophy-not-CSS fidelity and tagged correction output", () => {
+    const prompt = buildSkillReviewPrompt({
+      draftSkill: "bad draft",
+      synthesizedNotes: "frosted overlays over photography",
+      fidelityReasons: ["Missing positive matte recipe"],
+    });
+
+    expect(prompt).toContain("not dumping brand CSS");
+    expect(prompt).toContain("Missing positive matte recipe");
+    expect(prompt).toContain("<review-changelog>");
+    expect(prompt).toContain("<skill-body>");
+    expect(prompt).toContain("frosted overlays over photography");
   });
 });

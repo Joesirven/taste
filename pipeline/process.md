@@ -17,6 +17,8 @@ runs/{runId}/02-image-notes/synthesized/{imageId}.md
 runs/{runId}/03-rule-set/chunks/{chunkId}-rules.md
 runs/{runId}/03-rule-set/merges/{mergeId}-rules.md
 runs/{runId}/03-rule-set/rule-set.md
+runs/{runId}/04-skill/draft-SKILL.md   # local runner; hosted adoption optional
+runs/{runId}/04-skill/review.md        # local runner; hosted adoption deferred
 runs/{runId}/04-skill/SKILL.md
 ```
 
@@ -36,7 +38,12 @@ runs/{runId}/04-skill/SKILL.md
 6. If there are too many chunks for one clean merge, reduce them through
    intermediate merge layers using `RULE_MERGE_FAN_IN`.
 7. Generate the final rule set.
-8. Generate the final `SKILL.md`.
+8. Generate a draft `SKILL.md`.
+9. Review the draft against synthesized notes for material fidelity (e.g. matte
+   frosted overlays vs undifferentiated glassmorphism collapse). Write
+   `04-skill/review.md` and publish the final `SKILL.md` (post-review).
+   Hosted Blob layout may add `04-skill/review.md` when the web runner adopts
+   the same stage.
 
 ## Tuning
 

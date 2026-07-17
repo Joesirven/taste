@@ -6,10 +6,15 @@ import {
   normalizeSkillName,
 } from "./config";
 import {
+  assertSkillFidelity,
+  notesEvidenceFrostOverlay,
+} from "./eval/skill-fidelity";
+import {
   buildAnalysisPrompt,
   buildChunkPrompt,
   buildRuleSetPrompt,
   buildSkillPrompt,
+  buildSkillReviewPrompt,
   buildSynthesisPrompt,
 } from "./prompts";
 import { generateProviderText, generateProviderVisionText } from "./providers";
@@ -106,6 +111,74 @@ export async function generateSkill(input: {
   };
 }
 
+export type ReviewAndCorrectSkillInput = {
+  credentials?: AiProviderCredentials | undefined;
+  model: string;
+  draftSkill: string;
+  synthesizedNotes: string;
+  frostOverlayEvidenced?: boolean | undefined;
+  abortSignal?: AbortSignal | undefined;
+  /** Test seam — defaults to generateProviderText. */
+  generateText?: typeof generateProviderText;
+};
+
+export type ReviewAndCorrectSkillResult = TextGenerationResult & {
+  corrected: boolean;
+  changelog: string | null;
+  fidelityReasons: string[];
+};
+
+/**
+ * Compare draft skill to synthesized notes; correct when frost-overlay fidelity fails.
+ * Returns the draft unchanged when fidelity already passes or notes do not evidence frost overlays.
+ */
+export async function reviewAndCorrectSkill(
+  input: ReviewAndCorrectSkillInput,
+): Promise<ReviewAndCorrectSkillResult> {
+  const frostOverlayEvidenced =
+    input.frostOverlayEvidenced ?? notesEvidenceFrostOverlay(input.synthesizedNotes);
+  const fidelity = assertSkillFidelity(input.draftSkill, { frostOverlayEvidenced });
+
+  if (fidelity.ok) {
+    return {
+      text: input.draftSkill,
+      model: input.model,
+      usage: { inputTokens: null, outputTokens: null, totalTokens: null },
+      corrected: false,
+      changelog: null,
+      fidelityReasons: [],
+    };
+  }
+
+  const generateText = input.generateText ?? generateProviderText;
+  const result = await generateText({
+    credentials: input.credentials,
+    model: input.model,
+    prompt: buildSkillReviewPrompt({
+      draftSkill: input.draftSkill,
+      synthesizedNotes: boundNotes(input.synthesizedNotes),
+      fidelityReasons: fidelity.reasons,
+    }),
+    maxOutputTokens: DEFAULT_MAX_OUTPUT_TOKENS.skillReview,
+    abortSignal: input.abortSignal,
+  });
+
+  const parsed = parseSkillReviewOutput(result.text);
+  const correctedBody = parsed.body?.trim() ? parsed.body.trim() : input.draftSkill;
+  const frontmatterMatch = input.draftSkill.match(/^---\n[\s\S]*?\n---\n*/);
+  const text = frontmatterMatch
+    ? `${frontmatterMatch[0]}${stripFrontmatter(correctedBody)}`
+    : correctedBody;
+
+  return {
+    ...result,
+    text,
+    corrected: text.trim() !== input.draftSkill.trim(),
+    changelog: parsed.changelog,
+    fidelityReasons: fidelity.reasons,
+  };
+}
+
 export function parseSkillGenerationOutput(markdown: string): {
   description: string;
   body: string;
@@ -125,6 +198,24 @@ export function parseSkillGenerationOutput(markdown: string): {
     body,
     usedFallbackDescription: description === null,
   };
+}
+
+export function parseSkillReviewOutput(markdown: string): {
+  changelog: string | null;
+  body: string | null;
+} {
+  const text = markdown.trim();
+  return {
+    changelog: extractTaggedBlock(text, "review-changelog"),
+    body: extractTaggedBlock(text, "skill-body"),
+  };
+}
+
+const NOTES_BOUND_CHARS = 24_000;
+
+function boundNotes(notes: string): string {
+  if (notes.length <= NOTES_BOUND_CHARS) return notes;
+  return `${notes.slice(0, NOTES_BOUND_CHARS)}\n\n[notes truncated for review context]`;
 }
 
 function stripFrontmatter(markdown: string): string {

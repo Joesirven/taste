@@ -13,6 +13,7 @@ export const DEFAULT_MAX_OUTPUT_TOKENS = {
   ruleChunk: 20000,
   ruleSet: 20000,
   skill: 12000,
+  skillReview: 12000,
 } as const;
 
 export const DEFAULT_SKILL_NAME = "taste";

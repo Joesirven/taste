@@ -35,6 +35,15 @@ Discuss scale, weight, contrast, text density, labels, headings, and how type cr
 ## 5. Color, material, light, texture, and depth principles
 Discuss palette, contrast, gradients, shadows, borders, surfaces, opacity, texture, print/noise, rendering style, and finish.
 
+When translucent overlays sit on photography or other rich imagery, include an explicit **Material recipe** (relative bands, not brand CSS dumps):
+- Blur band (soft diffusion over the substrate vs none)
+- Fill family and approximate opacity
+- Border treatment
+- Gloss vs matte finish
+- Substrate (what sits underneath the overlay)
+
+Disambiguate **glossy reflective glass** (specular highlights, chrome, heavy shadowed glass cards) from **matte frosted overlays** over imagery. Soft bokeh/pale circles inside a photo are atmospheric, not automatically the frosted UI overlay system.
+
 ## 6. Aesthetic mood / vibe
 Describe the visual vibe using domain-independent aesthetic language. Avoid product/domain interpretations.
 
@@ -63,6 +72,13 @@ Do not preserve domain or subject-matter interpretations as taste rules. Transla
 The analyses below are intentionally anonymized and source-neutral. Treat them as peer evidence. Do not infer which model produced either analysis, and do not favor an analysis because it resembles your own wording. Adjudicate disagreements by looking at the image again.
 
 Look at the image again. Use the analyses as evidence, but correct anything that seems too functional, content-specific, overstated, brand-specific, or not actually visible. Preserve sharp aesthetic insights. Remove duplication. The output should become the definitive per-image taste note for later cross-image synthesis.
+
+Material / depth adjudication:
+- If either analysis reports frosted or translucent overlays over photography/imagery, keep a concrete Material recipe in material/texture/depth (blur band, fill/~opacity, border, gloss vs matte, substrate).
+- Do not erase that recipe because of a generic “avoid glassmorphism” prior.
+- Prefer the analysis that cites the substrate (what sits under the overlay) when material claims conflict.
+- Soft pale circles inside a photo may be atmospheric only; do not redefine frosted UI overlays as circle-overlap translucency unless that is the dominant visible system.
+- Ban glossy reflective glass separately from allowing or requiring matte frosted overlays when evidenced.
 
 Image metadata:
 - id: ${input.image.id}
@@ -184,6 +200,11 @@ Where exact values are unavailable, give useful relative constraints supported b
 ## Prohibited model shortcuts
 List concrete shortcuts the generator must not use, but only include shortcuts supported by the risk in this chunk or by obvious model-prior risk. Do not blacklist a typeface category, color family, medium, subject category, or aesthetic label merely because it can be clichéd.
 
+Material ban split (when relevant to this chunk):
+- Prohibit glossy reflective glassmorphism (specular highlights, chrome, heavy shadowed glass cards) when that risk appears.
+- When notes evidence frosted or translucent overlays on photography/imagery, require a positive matte frosted-overlay rule (blur band, fill/~opacity, border, substrate). Do not replace that evidence with a blanket “remove glass / avoid glass effects / no frosted panels” ban.
+- Do not redefine frost as only pale circle-overlap translucency unless that is the dominant evidence in the notes.
+
 ## Source-specific content to discard
 List content/domain/copy/signifier observations that should not become style rules.
 `;
@@ -210,6 +231,8 @@ REQUIRED BEHAVIOR:
 - Keep the design language transferable across domains and media. The aesthetic must come from visible structure, not invented content.
 - Do not include image IDs, chunk IDs, evidence references, or process notes in the final rule set.
 - Make compatible exceptions explicit and bounded; do not leave broad freedom.
+- Split material bans: prohibit glossy reflective glassmorphism (specular, chrome, heavy shadowed glass) separately from matte frosted overlays. When chunk drafts evidence frosted overlays on photography/imagery, require a positive overlay-over-substrate recipe; do not collapse that mode into “remove transparent glass cards” or “avoid glass effects.”
+- Do not redefine frost as only pale circle-overlap translucency unless that is the dominant evidence across drafts.
 
 Chunk rule drafts:${drafts}
 
@@ -264,6 +287,7 @@ Rules:
 - Derive typography, color, texture, density, imagery, material, content-treatment, and medium defaults from the rule set.
 - Do not force interface, poster, document, brand, product, or illustration conventions unless the rule set supports them.
 - Make collapse guardrails explicit, but tailor them to the reference evidence rather than using generic bans.
+- Material collapse guardrail: if the rule set evidences matte frosted overlays over photography/imagery, keep a positive overlay recipe (blur band, translucent fill/~opacity, quiet border, matte finish). Ban glossy reflective glassmorphism (specular, chrome, heavy shadowed glass) separately. Do not instruct “if glassmorphism → remove transparent glass cards → use pale overlap only” when that would delete evidenced matte frost.
 - Do not mention source images, chunks, models, APIs, experiments, or this process.
 - Do not include YAML frontmatter.
 
@@ -313,4 +337,53 @@ ${ruleSet}
 
 function formatDimensions(image: TasteImage): string {
   return `${image.width ?? "unknown"}x${image.height ?? "unknown"}`;
+}
+
+export function buildSkillReviewPrompt(input: {
+  draftSkill: string;
+  synthesizedNotes: string;
+  fidelityReasons?: string[] | undefined;
+}): string {
+  const reasons =
+    input.fidelityReasons && input.fidelityReasons.length > 0
+      ? input.fidelityReasons.map((reason) => `- ${reason}`).join("\n")
+      : "- (none supplied; compare draft skill to notes yourself)";
+
+  return `You are reviewing a draft design taste skill against synthesized image notes for material and philosophy fidelity.
+
+This is about transferable aesthetic philosophy and implementable material constraints — not dumping brand CSS, not cloning specific UI elements, and not inventing domain content.
+
+Draft skill problems to watch for when notes evidence frosted/translucent overlays over photography/imagery:
+- Undifferentiated “remove glassmorphism / avoid glass effects / no frosted panels” bans that delete matte frost.
+- Redefining frost as only pale circle-overlap translucency when overlays over imagery are evidenced.
+- Missing positive matte frosted-overlay recipe (blur band, fill/~opacity, border, substrate, matte finish).
+
+When correcting:
+- Ban glossy reflective glassmorphism (specular, chrome, heavy shadowed glass) separately from allowing/requiring matte frosted overlays.
+- Keep relative material bands; do not paste exact vendor CSS values.
+- If the draft already matches the notes, return it unchanged.
+
+Fidelity failure reasons (if any):
+${reasons}
+
+Synthesized notes (bounded evidence):
+<notes>
+${input.synthesizedNotes}
+</notes>
+
+Draft skill:
+<draft-skill>
+${input.draftSkill}
+</draft-skill>
+
+Output exactly these tagged blocks:
+
+<review-changelog>
+One short paragraph: what changed, or "No changes — draft already faithful."
+</review-changelog>
+
+<skill-body>
+The full corrected skill markdown body (no YAML frontmatter). If unchanged, repeat the draft body.
+</skill-body>
+`;
 }
