@@ -24,6 +24,24 @@ The web app is a demo of the broader pipeline. The local pipeline is the easiest
 way to use this repo privately: it writes artifacts to `.taste/runs/...` and
 does not need Postgres, Vercel Blob, Cron, or hosted auth.
 
+## How it works at a glance
+
+```mermaid
+flowchart LR
+    IMG["Reference images<br/>up to 20 per run"] --> IDX["Index the corpus<br/>dedupe, stable image ids"]
+    IDX --> AN["Analyze each image<br/>vision models read visual evidence<br/>layout, color, type, density"]
+    AN --> FUSE["Fuse and chunk<br/>anonymized notes become one<br/>canonical note per image"]
+    FUSE --> RULES["Merge layers<br/>reduce to one rule set"]
+    RULES --> SK["Skill writer<br/>concrete visual constraints,<br/>no vague labels"]
+    SK --> OUT[("SKILL.md<br/>.taste/runs/&lt;run-id&gt;")]
+
+    classDef core fill:#005032,stroke:#0D1016,color:#FAFAF9
+    classDef store fill:#0D1016,stroke:#005032,color:#FAFAF9
+    classDef guard fill:#F5C518,stroke:#0D1016,color:#0D1016
+    class IMG,IDX,AN,FUSE,RULES,SK core
+    class OUT store
+```
+
 ## Quick Start: Local Pipeline
 
 Use this path if you want to create a taste skill from your own images.
